@@ -43,7 +43,7 @@ def err(msg):
 
 class Date:
     def __init__(self, date):
-        if isinstance(date, datetime.date) or isinstance(date, datetime.datetime):
+        if isinstance(date, (datetime.date, datetime.datetime)):
             self._date = datetime.date(date.year, date.month, date.day)
         else:
             self._date = self.parse_date(date)
@@ -56,11 +56,11 @@ class Date:
         m = re.search(r'^(\d\d?)/(\d\d?)$', date_str)               # m/d, mm/dd
         if m:
             [month, day] = [int(x) for x in m.groups()]
-            year = int(datetime.date.today().strftime('%Y'))
+            year = datetime.date.today().year
         else:
             m = re.search(r'^(\d\d?)/(\d\d?)/(\d\d)$', date_str)    # m/d/yy, mm/dd/yy
             if m:
-                [month, day, year] = [int(x) for x in m.groups()]
+                month, day, year = [int(x) for x in m.groups()]
                 if year < 70:
                     year += 2000
                 else:
@@ -108,8 +108,16 @@ class Date:
         return self._date.strftime('%m/%d/%Y')
 
 def parse_args(argv):
-    def is_date(date_str):
-        return '/' in date_str or date_str == 'today'
+    def parse_args_impl(argv):
+        try:
+            opts, args = getopt.getopt(argv, "q", ['quiet', ])
+        except getopt.GetoptError:
+            usage_and_exit()
+
+        if len(args) != 2:
+            usage_and_exit()
+
+        return opts, args
 
     def str2date(date_str):
         try:
@@ -119,6 +127,9 @@ def parse_args(argv):
 
         return result
 
+    def is_date(date_str):
+        return '/' in date_str or date_str == 'today'
+
     def str2int(num_str):
         try:
             result = int(num_str)
@@ -127,19 +138,12 @@ def parse_args(argv):
 
         return result
 
-    try:
-        opts, args = getopt.getopt(argv, "q", ['quiet', ])
-    except getopt.GetoptError:
-        usage_and_exit()
+    opts, args = parse_args_impl(argv)
 
     verbose = True
-
     for opt, _ in opts:
         if opt in ("-q", "--quiet"):
             verbose = False
-
-    if len(args) != 2:
-        usage_and_exit()
 
     date1 = str2date(args[0])
 
