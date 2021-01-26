@@ -30,115 +30,154 @@ Examples:
 import re
 import sys
 import getopt
-import string
 import datetime
+
+class DateError(Exception):
+    pass
 
 def usage_and_exit():
     raise SystemExit(__doc__) 
 
 def err(msg):
-    raise SystemExit, "ERROR: " + msg
+    raise SystemExit("ERROR: " + msg)
 
-def convert_date(date):
-    """Convert a date string into a year, month and day.
-
-    The following formats are allowed: 'today', m/d, mm/dd, m/d/yy, mm/dd/yy,
-    m/d/yyyy or mm/dd/yyyy.
-    """
-
-    if date == 'today':
-        d = datetime.date.today()
-        return [int(d.strftime('%Y')), int(d.strftime('%m')),
-                int(d.strftime('%d'))]
-
-    m = re.search(r'^(\d\d?)/(\d\d?)$', date)               # m/d, mm/dd
-    if m:
-        [month, day] = [int(x) for x in m.groups()]
-        year = int(datetime.date.today().strftime('%Y'))
-    else:
-        m = re.search(r'^(\d\d?)/(\d\d?)/(\d\d)$', date)    # m/d/yy, mm/dd/yy
-        if m:
-            [month, day, year] = [int(x) for x in m.groups()]
-            if year <= 70:
-                year += 2000
-            else:
-                year += 1900
+class Date:
+    def __init__(self, date):
+        if isinstance(date, datetime.date) or isinstance(date, datetime.datetime):
+            self._date = datetime.date(date.year, date.month, date.day)
         else:
-            # m/d/yyyy, mm/dd/yyyy
-            m = re.search(r'^(\d\d?)/(\d\d?)/(\d{4})$', date)
+            self._date = self.parse_date(date)
+
+    def parse_date(self, date_str):
+        if date_str == 'today':
+            today = datetime.date.today()
+            return datetime.date(today.year, today.month, today.day)
+
+        m = re.search(r'^(\d\d?)/(\d\d?)$', date_str)               # m/d, mm/dd
+        if m:
+            [month, day] = [int(x) for x in m.groups()]
+            year = int(datetime.date.today().strftime('%Y'))
+        else:
+            m = re.search(r'^(\d\d?)/(\d\d?)/(\d\d)$', date_str)    # m/d/yy, mm/dd/yy
             if m:
                 [month, day, year] = [int(x) for x in m.groups()]
+                if year < 70:
+                    year += 2000
+                else:
+                    year += 1900
             else:
-                err("`%s' is not a valid date!" % date)
+                # m/d/yyyy, mm/dd/yyyy
+                m = re.search(r'^(\d\d?)/(\d\d?)/(\d{4})$', date_str)
+                if m:
+                    [month, day, year] = [int(x) for x in m.groups()]
+                else:
+                    raise DateError("'%s' is not a valid date" % date_str)
 
-    try:
-        # print "debug: %10s ==> %02d/%02d/%d" % (date, month, day, year)
-        datetime.date(year, month, day)
-    except ValueError:
-        err("`%s' is not a valid date!" % date)
+        try:
+            result = datetime.date(year, month, day)
+        except ValueError:
+            raise DateError("'%s' is not a valid date" % date_str)
 
-    return [year, month, day]
+        return result
 
-def cal_shifted_date(yyyy, mm, dd, n):
-    """Figure out what date it is after shifting `yyyy/mm/dd` by `n' days.
+    def date(self):
+        return self._date
 
-    `n' can be any integer number (including 0 and negative values).
-    """
+    def __add__(self, other):
+        if not isinstance(other, int):
+            raise DateError("'%s' needs to be an integer" % other)
 
-    d = datetime.date(yyyy, mm, dd)
-    d += datetime.timedelta(n)
-    return d.strftime('%m/%d/%Y')
+        return Date(self._date + datetime.timedelta(days=other))
 
-def cal_days_diff(yyyy1, mm1, dd1, yyyy2, mm2, dd2):
-    """Given two dates, calculate the number of days between them."""
+    def __sub__(self, other):
+        if not isinstance(other, Date):
+            raise DateError("'%s' needs to be a Date instance" % other)
 
-    date1 = datetime.date(yyyy1, mm1, dd1)
-    date2 = datetime.date(yyyy2, mm2, dd2)
-    diff = repr(date2 - date1)
-    g = re.search('datetime.timedelta\((.*)\)', diff)
-    return int(g.groups()[0])
+        return (self.date() - other.date()).days
+
+    def __eq__(self, other):
+        if not isinstance(other, Date):
+            raise DateError("'%s' needs to be a Date instance" % other)
+
+        return self._date == other.date()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __str__(self):
+        return self._date.strftime('%m/%d/%Y')
 
 def parse_args(argv):
-    verbose = True
+    def is_date(date_str):
+        return '/' in date_str or date_str == 'today'
+
+    def str2date(date_str):
+        try:
+            result = Date(date_str)
+        except DateError as e:
+            err(str(e))
+
+        return result
+
+    def str2int(num_str):
+        try:
+            result = int(num_str)
+        except ValueError:
+            err("'%s' is not a valid number or date!" % args[1])
+
+        return result
 
     try:
         opts, args = getopt.getopt(argv, "q", ['quiet', ])
     except getopt.GetoptError:
         usage_and_exit()
 
-    for opt, arg in opts:
+    verbose = True
+
+    for opt, _ in opts:
         if opt in ("-q", "--quiet"):
             verbose = False
 
     if len(args) != 2:
-	usage_and_exit()
+        usage_and_exit()
 
-    return verbose, args[0], args[1]
+    date1 = str2date(args[0])
+
+    if is_date(args[1]):
+        arg2 = str2date(args[1])
+    else:
+        arg2 = str2int(args[1])
+
+    return date1, arg2, verbose
+
+def diff_dates(date1, date2, verbose=True):
+    ndays = date2 - date1
+
+    if verbose:
+        print('%s to %s: %d day(s)' % (date1, date2, ndays))
+    else:
+        print(ndays)
+
+    return ndays
+
+def shift_date(date1, ndays, verbose=True):
+    new_date = date1 + ndays
+
+    if verbose:
+        print("%s %s %d day(s): %s" % (
+            date1, '+' if ndays >= 0 else '-', abs(ndays), new_date))
+    else:
+        print('%s' % new_date)
+
+    return new_date
 
 def main(argv):
-    verbose, arg1, arg2 = parse_args(argv)
+    arg1, arg2, verbose = parse_args(argv)
 
-    [year1, month1, day1] = convert_date(arg1)
-    if '/' in arg2 or arg2 == 'today':
-	[year2, month2, day2] = convert_date(arg2)
-        ndays = cal_days_diff(year1, month1, day1, year2, month2, day2)
-        if verbose:
-            print "%02d/%02d/%d to %02d/%02d/%d: %d day(s)" % \
-                    (month1, day1, year1, month2, day2, year2, ndays)
-        else:
-            print "%d day(s)" % ndays
+    if isinstance(arg2, Date):
+        diff_dates(arg1, arg2, verbose)
     else:
-	try:
-	    ndays = string.atoi(arg2)
-	except ValueError:
-	    err("`%s' is not a valid number or date!" % arg2)
-
-        result = cal_shifted_date(year1, month1, day1, ndays)
-        if verbose:
-            print "%02d/%02d/%d %s %d day(s): %s" % \
-                    (month1, day1, year1, ndays >= 0 and '+' or '-', abs(ndays), result)
-        else:
-            print result
+        shift_date(arg1, arg2, verbose)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
