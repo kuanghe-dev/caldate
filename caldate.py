@@ -90,10 +90,13 @@ class Date:
         return Date(self._date + datetime.timedelta(days=other))
 
     def __sub__(self, other):
-        if not isinstance(other, Date):
-            raise DateError("'%s' needs to be a Date instance" % other)
+        if isinstance(other, int):
+            return self.__add__(-other)
 
-        return (self.date() - other.date()).days
+        if isinstance(other, Date):
+            return (self.date() - other.date()).days
+
+        raise DateError("'%s' needs to be a Date instance" % other)
 
     def __eq__(self, other):
         if not isinstance(other, Date):

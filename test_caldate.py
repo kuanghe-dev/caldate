@@ -80,6 +80,15 @@ class TestDate:
         with pytest.raises(DateError):
             assert Date('3/0/1985')
 
+    def test_add_and_minus_ndays(self):
+        today = Date('today')
+        today += 3000
+        today -= 3000
+        assert today == Date('today')
+
+    def test_minus_ndays(self):
+        assert Date('today') + (-3000) == Date('today') -3000
+
 class TestDiffDates:
     def test_same_date_1(self):
         assert diff_dates(Date('today'), Date('today')) == 0
