@@ -35,7 +35,7 @@ import datetime
 class DateError(Exception):
     pass
 
-def usage_and_exit():
+def print_usage_and_exit():
     raise SystemExit(__doc__) 
 
 def err(msg):
@@ -112,10 +112,10 @@ def parse_args(argv):
         try:
             opts, args = getopt.getopt(argv, "q", ['quiet', ])
         except getopt.GetoptError:
-            usage_and_exit()
+            print_usage_and_exit()
 
         if len(args) != 2:
-            usage_and_exit()
+            print_usage_and_exit()
 
         return opts, args
 
@@ -155,33 +155,35 @@ def parse_args(argv):
     return date1, arg2, verbose
 
 def diff_dates(date1, date2, verbose=True):
-    ndays = date2 - date1
+    """Return the difference between date1 and date2 in number of days"""
+
+    result = date2 - date1
 
     if verbose:
-        print('%s to %s: %d day(s)' % (date1, date2, ndays))
+        print('%s to %s: %d day(s)' % (date1, date2, result))
     else:
-        print(ndays)
+        print(result)
 
-    return ndays
+    return result
 
 def shift_date(date1, ndays, verbose=True):
-    new_date = date1 + ndays
+    result = date1 + ndays
 
     if verbose:
         print("%s %s %d day(s): %s" % (
-            date1, '+' if ndays >= 0 else '-', abs(ndays), new_date))
+            date1, '+' if ndays >= 0 else '-', abs(ndays), result))
     else:
-        print('%s' % new_date)
+        print('%s' % result)
 
-    return new_date
+    return result
 
 def main(argv):
-    arg1, arg2, verbose = parse_args(argv)
+    date, arg2, verbose = parse_args(argv)
 
     if isinstance(arg2, Date):
-        diff_dates(arg1, arg2, verbose)
+        diff_dates(date, arg2, verbose)
     else:
-        shift_date(arg1, arg2, verbose)
+        shift_date(date, arg2, verbose)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
