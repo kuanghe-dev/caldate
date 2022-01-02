@@ -26,3 +26,7 @@
 
     $ caldate today 12/25       # Assuming today is Feb 4, 2013
     02/04/2013 to 12/25/2013: 324 day(s)
+    
+## License
+
+See the [LICENSE](LICENSE.md) file for license rights and limitations (MIT).
